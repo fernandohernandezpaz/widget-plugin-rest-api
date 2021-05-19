@@ -24,32 +24,35 @@ class Graficos_Widget extends WP_Widget
                 'customize_selective_refresh' => true,
             )
         );
-
-        $curl = curl_init();
-        $url = 'http://127.0.0.1:8000/api/test';
-        curl_setopt_array($curl, array(
-            CURLOPT_URL => $url,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_ENCODING => "",
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 30,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => 'GET',
-        ));
-
-        $response = curl_exec($curl);
-
-        curl_close($curl);
-        $err = curl_error($curl);
-
         $responseApi = [];
-        if ($err) {
-            $responseApi['-'] = 'Sin conexion al listado de apis';
-        } else {
-            foreach (json_decode($response) as $api) {
-                $responseApi["$api->url"] = $api->name;
+        try {
+            $curl = curl_init();
+            $url = 'http://127.0.0.1:8000/api/test';
+            curl_setopt_array($curl, array(
+                CURLOPT_URL => $url,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_ENCODING => "",
+                CURLOPT_MAXREDIRS => 10,
+                CURLOPT_TIMEOUT => 30,
+                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                CURLOPT_CUSTOMREQUEST => 'GET',
+            ));
+
+            $response = curl_exec($curl);
+
+            curl_close($curl);
+
+            $response = json_decode($response);
+            if (empty($response)) {
+                $responseApi['-'] = 'Sin conexion al listado de apis';
+            } else {
+                foreach ($response as $api) {
+                    $responseApi["$api->url"] = $api->name;
+                }
             }
+        } catch (\Exception $e) {
+            $responseApi['-'] = 'Sin conexion al listado de apis';
         }
 
 
@@ -107,7 +110,6 @@ class Graficos_Widget extends WP_Widget
         <?php // Dropdown
         ?>
         <p>
-        <pre><?php echo json_encode($this->nuevosCampos); ?></pre>
         <?php
         foreach ($this->nuevosCampos as $campo) {
             ?>
