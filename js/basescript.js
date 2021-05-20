@@ -3,7 +3,7 @@ const iframeId = '#elementor-preview-iframe';
 
     let myTimerVerificacion = null;
 
-    window.setGraficar = function graficar(html, graficoId) {
+    window.setGraficar = async function graficar(html, graficoId) {
         if (!html) {
             return null;
         }
@@ -16,8 +16,13 @@ const iframeId = '#elementor-preview-iframe';
 
         let chart = echarts.init(html);
         let opciones = {};
-        const opcion = document.getElementById(graficoId).dataset['tipo_grafico'];
-        switch (opcion) {
+        const tipoGrafico = document.getElementById(graficoId).dataset['tipo_grafico'];
+        let response = [];
+        if (window[graficoId] !== undefined && window[graficoId]['api']) {
+            const urlAPI = window[graficoId]['api'];
+            response = await fetch(urlAPI).then(response => response.json());
+        }
+        switch (tipoGrafico) {
             case 'barra':
                 opciones = opcionesGraficoBarra;
                 break;
@@ -28,9 +33,23 @@ const iframeId = '#elementor-preview-iframe';
                 opciones = opcionesGraficoLinea;
                 break;
         }
-        const divGrafico = crearDiv(graficoId);
-        asignarNuevasLlavesOpcion(graficoId, opciones);
+        if (response.length) {
+            switch (tipoGrafico) {
+                case 'barra':
+                    opciones['xAxis'] = response.map(record => record.nombre);
+                    opciones['series'][0]['data'] = response.map(record => record.puntuacion);
+                    break;
+                case 'pastel':
+                    opciones['series'][0]['data'] = response.map(record => ({
+                        name: record.nombre,
+                        value: record.puntuacion
+                    }));
+                    break;
+            }
+        }
 
+        const divGrafico = crearDiv(graficoId);
+        asignarNuevasLlavesOpcion(graficoId, opciones, tipoGrafico);
         jQuery(iframeId).contents().find(`#grafico_${graficoId}`).html(divGrafico);
 
         chart.setOption(opciones);
@@ -50,7 +69,6 @@ const iframeId = '#elementor-preview-iframe';
             if (document.readyState === 'complete') {
                 const iframe = document.getElementsByTagName('iframe')[0];
                 if (document.body.contains(iframe)) {
-                    console.log('renderizado');
                     clearInterval(myTimerVerificacion);
                     graficar(
                         document.getElementById(graficoId),
@@ -70,9 +88,9 @@ const iframeId = '#elementor-preview-iframe';
         return divGrafico;
     }
 
-    const asignarNuevasLlavesOpcion = (graficoId, opcionesGrafico) => {
-        if (Object.keys(camposExtrasParaGraficos).length) {
-            const campos = camposExtrasParaGraficos[graficoId];
+    const asignarNuevasLlavesOpcion = (graficoId, opcionesGrafico, tipoGrafico) => {
+        if (window[graficoId] !== undefined) {
+            const campos = window[graficoId];
             const llaves = Object.keys(campos);
 
             for (const llave of llaves) {
@@ -84,7 +102,10 @@ const iframeId = '#elementor-preview-iframe';
                                 left: 'center',
                                 show: true
                             },
-                        })
+                        });
+                        if (tipoGrafico === 'pastel') {
+                            opcionesGrafico['series'][0]['name'] = campos[llave];
+                        }
                         break;
                 }
             }
